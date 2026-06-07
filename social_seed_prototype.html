@@ -1,0 +1,2086 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Social Seed Prototype</title>
+  <style>
+    /* =========================================================
+       Social Seed static prototype
+       你主要会改 JS 里的三个区域：
+       1. GROUP_QUESTIONS：第一次分组问卷，8 题，每题 6 选项
+       2. DAY_DIALOGUE_QUESTIONS：组内聊天里的 Day 1-3 每日问卷
+       3. GROUPS：六个小组的名称、说明和初始花朵参数
+       ========================================================= */
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    :root {
+      --bg: #020706;
+      --panel: rgba(2, 10, 9, 0.64);
+      --panel-soft: rgba(255, 255, 255, 0.055);
+      --line: rgba(214, 255, 239, 0.18);
+      --line-strong: rgba(125, 255, 215, 0.46);
+      --text: #f4fff9;
+      --muted: rgba(244, 255, 249, 0.68);
+      --faint: rgba(244, 255, 249, 0.44);
+      --green: #46ffc0;
+      --cyan: #7feaff;
+      --violet: #b997ff;
+      --pink: #ff9cd9;
+      --amber: #ffd587;
+      --danger: #ff8fa8;
+      --radius: 22px;
+    }
+
+    body {
+      min-height: 100vh;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Arial, sans-serif;
+      color: var(--text);
+      background: #020706;
+      overflow: hidden;
+    }
+
+    .image-bg {
+      position: fixed;
+      inset: 0;
+      z-index: 0;
+      background:
+        linear-gradient(90deg, rgba(0, 0, 0, 0.58), rgba(0, 0, 0, 0.16) 48%, rgba(0, 0, 0, 0.54)),
+        linear-gradient(180deg, rgba(0, 0, 0, 0.18), rgba(0, 0, 0, 0.72)),
+        url("images/background.png") center / cover no-repeat;
+      filter: saturate(1.08) contrast(1.02);
+    }
+
+    .image-bg::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.026) 0 1px, transparent 1px 96px),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.018) 0 1px, transparent 1px 82px);
+      box-shadow: inset 0 0 180px rgba(0, 0, 0, 0.78);
+      opacity: 0.6;
+      pointer-events: none;
+    }
+
+    .app {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+    }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+
+    .brand {
+      color: rgba(244, 255, 249, 0.76);
+      font-size: 12px;
+      letter-spacing: 0.16em;
+      text-transform: uppercase;
+    }
+
+    .brand strong {
+      color: white;
+      text-shadow: 0 0 18px rgba(70, 255, 192, 0.42);
+    }
+
+    .top-actions,
+    .inline-actions {
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      flex-wrap: wrap;
+    }
+
+    button {
+      border: 1px solid var(--line);
+      border-radius: 999px;
+      background: rgba(4, 18, 16, 0.54);
+      color: var(--text);
+      padding: 10px 15px;
+      font: inherit;
+      font-size: 13px;
+      font-weight: 720;
+      cursor: pointer;
+      backdrop-filter: blur(16px);
+      transition: transform .18s ease, border-color .18s ease, background .18s ease, opacity .18s ease;
+    }
+
+    button:hover {
+      transform: translateY(-1px);
+      border-color: var(--line-strong);
+      background: rgba(70, 255, 192, 0.12);
+    }
+
+    button:disabled {
+      opacity: .45;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .primary-btn {
+      border-color: var(--line-strong);
+      background: rgba(70, 255, 192, 0.16);
+    }
+
+    .ghost-btn {
+      color: var(--muted);
+    }
+
+    .danger-btn {
+      border-color: rgba(255, 143, 168, 0.48);
+      color: #ffdce4;
+    }
+
+    .page {
+      display: none;
+      flex: 1;
+      min-height: 0;
+    }
+
+    .page.active {
+      display: flex;
+    }
+
+    .home {
+      align-items: center;
+      justify-content: flex-start;
+    }
+
+    .home-card {
+      width: min(640px, 94vw);
+      margin-left: min(6vw, 72px);
+      padding: clamp(30px, 5vw, 58px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: rgba(2, 10, 9, 0.54);
+      backdrop-filter: blur(24px);
+      box-shadow: 0 34px 100px rgba(0, 0, 0, .42);
+    }
+
+    .eyebrow {
+      color: var(--green);
+      font-size: 12px;
+      letter-spacing: .18em;
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+
+    h1 {
+      font-size: clamp(54px, 9vw, 118px);
+      line-height: .9;
+      letter-spacing: -0.06em;
+      margin-bottom: 20px;
+    }
+
+    h2 {
+      font-size: clamp(24px, 3.6vw, 42px);
+      letter-spacing: -0.035em;
+    }
+
+    h3 {
+      font-size: 17px;
+      margin-bottom: 8px;
+    }
+
+    p {
+      color: var(--muted);
+      line-height: 1.65;
+    }
+
+    .home p {
+      max-width: 520px;
+      margin-bottom: 26px;
+    }
+
+    .panel-page {
+      align-items: center;
+      justify-content: center;
+      min-height: 0;
+    }
+
+    .panel {
+      width: min(1120px, 96vw);
+      max-height: calc(100vh - 106px);
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      background: var(--panel);
+      backdrop-filter: blur(26px);
+      box-shadow: 0 34px 110px rgba(0, 0, 0, .46);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    .panel.narrow {
+      width: min(740px, 94vw);
+    }
+
+    .panel-header {
+      padding: 18px 22px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 14px;
+      border-bottom: 1px solid rgba(214, 255, 239, .12);
+    }
+
+    .panel-title {
+      font-size: 21px;
+      font-weight: 840;
+      letter-spacing: -0.02em;
+    }
+
+    .panel-subtitle {
+      margin-top: 4px;
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.5;
+    }
+
+    .panel-body {
+      padding: 22px;
+      overflow: auto;
+    }
+
+    input[type="text"] {
+      width: 100%;
+      border: 1px solid rgba(214, 255, 239, .20);
+      border-radius: 16px;
+      background: rgba(0, 0, 0, .24);
+      color: var(--text);
+      padding: 14px 15px;
+      outline: none;
+      font-size: 15px;
+    }
+
+    input:focus {
+      border-color: var(--line-strong);
+      box-shadow: 0 0 0 4px rgba(70, 255, 192, .08);
+    }
+
+    .stack {
+      display: grid;
+      gap: 14px;
+    }
+
+    .muted {
+      color: var(--muted);
+    }
+
+    .small {
+      font-size: 12px;
+      color: var(--faint);
+      line-height: 1.55;
+    }
+
+    .card,
+    .question-card,
+    .metric,
+    .data-card {
+      border: 1px solid rgba(214, 255, 239, .14);
+      border-radius: 18px;
+      background: var(--panel-soft);
+      padding: 16px;
+    }
+
+    .chips {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .chip {
+      border: 1px solid rgba(214, 255, 239, .16);
+      border-radius: 999px;
+      padding: 6px 10px;
+      color: var(--muted);
+      font-size: 12px;
+      background: rgba(0, 0, 0, .14);
+    }
+
+    .chip.hot {
+      color: white;
+      border-color: rgba(70, 255, 192, .46);
+      background: rgba(70, 255, 192, .10);
+    }
+
+    .question-list {
+      display: grid;
+      gap: 14px;
+    }
+
+    .question-card h3 {
+      display: flex;
+      gap: 10px;
+      align-items: baseline;
+      line-height: 1.35;
+    }
+
+    .q-index {
+      color: var(--green);
+      font-size: 12px;
+      letter-spacing: .08em;
+    }
+
+    .option-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 9px;
+      margin-top: 12px;
+    }
+
+    .likert-grid {
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+    }
+
+    .likert-guide {
+      border: 1px solid rgba(214, 255, 239, .14);
+      border-radius: 16px;
+      padding: 13px 15px;
+      margin-bottom: 16px;
+      background: rgba(0, 0, 0, .18);
+      color: var(--muted);
+      font-size: 13px;
+      line-height: 1.55;
+    }
+
+    .likert-guide strong {
+      color: var(--text);
+      font-weight: 780;
+    }
+
+    .likert-scale {
+      position: relative;
+      display: grid;
+      grid-template-columns: repeat(5, minmax(0, 1fr));
+      gap: 0;
+      margin-top: 18px;
+      padding: 0 2px 2px;
+      --fill-width: 0px;
+    }
+
+    .likert-scale::before {
+      content: "";
+      position: absolute;
+      left: 7px;
+      right: 7px;
+      top: 7px;
+      height: 12px;
+      border-radius: 999px;
+      background: rgba(244, 255, 249, .92);
+      box-shadow: inset 0 0 0 1px rgba(0, 0, 0, .18);
+    }
+
+    .likert-scale::after {
+      content: "";
+      position: absolute;
+      left: 7px;
+      top: 7px;
+      width: var(--fill-width);
+      height: 12px;
+      border-radius: 999px;
+      background: linear-gradient(90deg, rgba(34, 255, 192, .95), rgba(72, 255, 210, .82));
+      box-shadow: 0 0 18px rgba(34, 255, 192, .34);
+      transition: width .22s ease;
+      pointer-events: none;
+    }
+
+    .option {
+      position: relative;
+      min-height: 50px;
+      border: 1px solid rgba(214, 255, 239, .14);
+      border-radius: 14px;
+      padding: 11px 12px 11px 36px;
+      background: rgba(0, 0, 0, .15);
+      color: rgba(244, 255, 249, .84);
+      cursor: pointer;
+      line-height: 1.45;
+      font-size: 13px;
+      transition: border-color .16s ease, background .16s ease;
+    }
+
+    .option input {
+      position: absolute;
+      left: 13px;
+      top: 14px;
+      accent-color: var(--green);
+    }
+
+    .option:hover,
+    .option:has(input:checked) {
+      border-color: var(--line-strong);
+      background: rgba(70, 255, 192, .10);
+    }
+
+    .likert-option {
+      position: relative;
+      z-index: 1;
+      display: grid;
+      justify-items: center;
+      gap: 13px;
+      min-height: 58px;
+      border: 0;
+      border-radius: 0;
+      padding: 0;
+      background: transparent;
+      color: rgba(244, 255, 249, .82);
+      font-size: 17px;
+      line-height: 1;
+      cursor: pointer;
+    }
+
+    .likert-option:hover,
+    .likert-option:has(input:checked) {
+      border-color: transparent;
+      background: transparent;
+    }
+
+    .likert-option input {
+      position: absolute;
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .likert-dot {
+      position: relative;
+      z-index: 2;
+      width: 13px;
+      height: 13px;
+      border-radius: 50%;
+      background: rgba(208, 214, 214, .92);
+      box-shadow: 0 0 0 2px rgba(0, 0, 0, .04);
+      transition: background .16s ease, transform .16s ease, box-shadow .16s ease;
+    }
+
+    .likert-number {
+      position: relative;
+      z-index: 2;
+      transition: color .16s ease;
+    }
+
+    .likert-option.is-filled .likert-dot,
+    .likert-option:hover .likert-dot {
+      background: #22ffc0;
+      transform: scale(1.08);
+      box-shadow: 0 0 18px rgba(34, 255, 192, .42);
+    }
+
+    .likert-option.is-filled .likert-number,
+    .likert-option:hover .likert-number {
+      color: #22ffc0;
+    }
+
+    .result-layout {
+      display: grid;
+      grid-template-columns: .9fr 1.1fr;
+      gap: 16px;
+    }
+
+    .group-badge {
+      min-height: 250px;
+      border: 1px solid rgba(214, 255, 239, .18);
+      border-radius: 20px;
+      padding: 22px;
+      background:
+        radial-gradient(circle at 70% 18%, rgba(185, 151, 255, .24), transparent 30%),
+        radial-gradient(circle at 28% 72%, rgba(70, 255, 192, .18), transparent 34%),
+        rgba(255, 255, 255, .052);
+    }
+
+    .group-number {
+      color: var(--green);
+      font-size: 12px;
+      letter-spacing: .16em;
+      text-transform: uppercase;
+      margin-bottom: 12px;
+    }
+
+    .group-name {
+      font-size: clamp(30px, 5vw, 52px);
+      line-height: 1;
+      letter-spacing: -0.04em;
+      margin-bottom: 16px;
+    }
+
+    .score-bars {
+      display: grid;
+      gap: 9px;
+      margin-top: 14px;
+    }
+
+    .score-row {
+      display: grid;
+      grid-template-columns: 126px 1fr 30px;
+      gap: 9px;
+      align-items: center;
+      font-size: 12px;
+      color: var(--muted);
+    }
+
+    .bar {
+      height: 8px;
+      border-radius: 99px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, .09);
+    }
+
+    .bar span {
+      display: block;
+      height: 100%;
+      border-radius: 99px;
+      background: linear-gradient(90deg, var(--green), var(--violet));
+    }
+
+    .chat-layout {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) 390px;
+      flex: 1;
+      min-height: 0;
+      height: min(620px, calc(100vh - 150px));
+      overflow: hidden;
+    }
+
+    .chat-main {
+      display: flex;
+      flex-direction: column;
+      min-width: 0;
+      min-height: 0;
+    }
+
+    .messages {
+      flex: 1;
+      overflow: auto;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 11px;
+    }
+
+    .message {
+      max-width: 82%;
+      padding: 11px 13px;
+      border-radius: 17px;
+      line-height: 1.52;
+      font-size: 14px;
+      animation: messageIn .22s ease both;
+    }
+
+    @keyframes messageIn {
+      from {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    .message .name {
+      display: block;
+      color: var(--faint);
+      font-size: 12px;
+      margin-bottom: 4px;
+    }
+
+    .message.system {
+      align-self: center;
+      max-width: 92%;
+      text-align: center;
+      border: 1px solid rgba(255, 255, 255, .08);
+      background: rgba(255, 255, 255, .06);
+      color: var(--muted);
+    }
+
+    .message.other {
+      align-self: flex-start;
+      background: rgba(255, 255, 255, .08);
+      border-bottom-left-radius: 6px;
+    }
+
+    .message.me {
+      align-self: flex-end;
+      border: 1px solid rgba(70, 255, 192, .24);
+      background: rgba(70, 255, 192, .14);
+      border-bottom-right-radius: 6px;
+    }
+
+    .chat-input {
+      display: grid;
+      grid-template-columns: 1fr auto auto;
+      gap: 9px;
+      padding: 16px;
+      border-top: 1px solid rgba(214, 255, 239, .11);
+    }
+
+    .chat-input input {
+      border-radius: 999px;
+    }
+
+    .chat-controls {
+      grid-template-columns: repeat(4, minmax(0, auto));
+      justify-content: flex-end;
+    }
+
+    .chat-controls button {
+      white-space: nowrap;
+    }
+
+    .dialogue-panel {
+      border-left: 1px solid rgba(214, 255, 239, .11);
+      overflow: auto;
+      min-height: 0;
+      background: rgba(255, 255, 255, .025);
+    }
+
+    .dialogue-inner {
+      padding: 18px;
+      display: grid;
+      gap: 14px;
+    }
+
+    .day-tag {
+      width: fit-content;
+      border: 1px solid rgba(70, 255, 192, .42);
+      border-radius: 999px;
+      padding: 7px 10px;
+      background: rgba(70, 255, 192, .10);
+      font-size: 12px;
+      color: white;
+    }
+
+    .emotion-options {
+      display: grid;
+      gap: 8px;
+    }
+
+    .emotion-option {
+      min-height: auto;
+      padding-top: 9px;
+      padding-bottom: 9px;
+    }
+
+    .emotion-option input {
+      top: 10px;
+    }
+
+    .mapping-table {
+      display: grid;
+      gap: 8px;
+    }
+
+    .mapping-row {
+      display: grid;
+      grid-template-columns: 108px 1fr;
+      gap: 10px;
+      font-size: 12px;
+      color: var(--muted);
+      line-height: 1.5;
+    }
+
+    .mapping-row strong {
+      color: white;
+    }
+
+    .upload-prototype {
+      border: 1px dashed rgba(214, 255, 239, .24);
+      border-radius: 16px;
+      padding: 14px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      align-items: center;
+      color: var(--muted);
+      background: rgba(0, 0, 0, .13);
+    }
+
+    .flower-layout {
+      display: grid;
+      grid-template-columns: 370px minmax(0, 1fr);
+      gap: 18px;
+    }
+
+    .ultrasound-box {
+      min-height: 520px;
+      position: relative;
+      overflow: hidden;
+      border: 1px solid rgba(214, 255, 239, .16);
+      border-radius: 20px;
+      background:
+        radial-gradient(circle at 50% 45%, rgba(70, 255, 192, .08), transparent 32%),
+        repeating-linear-gradient(0deg, rgba(255, 255, 255, .018) 0 1px, transparent 1px 18px),
+        linear-gradient(180deg, #020506, #000);
+      box-shadow: inset 0 0 90px rgba(0, 0, 0, .64);
+    }
+
+    .ultrasound-image {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      object-fit: contain;
+      padding: 0;
+      opacity: .94;
+      filter: saturate(1.05) contrast(1.06);
+      transition: opacity .25s ease, transform .25s ease;
+      z-index: 1;
+    }
+
+    .ultrasound-box::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(90deg, transparent, rgba(255, 255, 255, .045), transparent);
+      animation: scan 3.2s linear infinite;
+      pointer-events: none;
+      z-index: 3;
+    }
+
+    @keyframes scan {
+      from {
+        transform: translateX(-100%);
+      }
+
+      to {
+        transform: translateX(100%);
+      }
+    }
+
+    .scan-label {
+      position: absolute;
+      left: 16px;
+      right: 16px;
+      top: 16px;
+      display: flex;
+      justify-content: space-between;
+      gap: 12px;
+      color: var(--faint);
+      font-size: 11px;
+      letter-spacing: .12em;
+      text-transform: uppercase;
+      z-index: 4;
+    }
+
+    .silhouette {
+      position: absolute;
+      left: 50%;
+      top: 51%;
+      width: 245px;
+      height: 385px;
+      transform: translate(-50%, -50%) scale(var(--scale, 1));
+      opacity: .86;
+      filter: blur(var(--blur, 13px)) saturate(1.24);
+      background:
+        radial-gradient(ellipse at 50% 8%, rgba(255, 255, 255, .88), transparent 13%),
+        radial-gradient(ellipse at 32% 25%, rgba(127, 234, 255, .82), transparent 20%),
+        radial-gradient(ellipse at 68% 26%, rgba(255, 156, 217, .70), transparent 19%),
+        radial-gradient(ellipse at 42% 47%, rgba(255, 213, 135, .62), transparent 21%),
+        radial-gradient(ellipse at 64% 50%, rgba(70, 255, 192, .70), transparent 19%),
+        radial-gradient(ellipse at 47% 73%, rgba(185, 151, 255, .62), transparent 19%),
+        linear-gradient(90deg, transparent 47%, rgba(174, 255, 214, .78) 49%, rgba(174, 255, 214, .42) 52%, transparent 54%);
+      clip-path: polygon(45% 0, 65% 8%, 80% 22%, 66% 38%, 84% 52%, 63% 64%, 68% 80%, 54% 100%, 43% 100%, 38% 82%, 22% 68%, 35% 54%, 15% 38%, 34% 23%);
+      z-index: 1;
+    }
+
+    .silhouette.has-scan-image {
+      display: none;
+    }
+
+    .silhouette.final {
+      filter: blur(7px) saturate(1.45);
+      opacity: .96;
+    }
+
+    .flower-report {
+      display: grid;
+      gap: 13px;
+    }
+
+    .report-tabs {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      margin-top: 12px;
+    }
+
+    .report-tab {
+      padding: 8px 11px;
+      font-size: 12px;
+    }
+
+    .report-tab.active {
+      border-color: var(--line-strong);
+      background: rgba(70, 255, 192, .14);
+      color: white;
+    }
+
+    .report-grid {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 10px;
+    }
+
+    .metric-label {
+      color: var(--faint);
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+    }
+
+    .metric-value {
+      font-size: 22px;
+      font-weight: 840;
+      margin-top: 4px;
+    }
+
+    .metric-note {
+      color: var(--muted);
+      font-size: 12px;
+      line-height: 1.45;
+      margin-top: 2px;
+    }
+
+    .prompt-box {
+      max-height: 250px;
+      overflow: auto;
+      white-space: pre-wrap;
+      word-break: break-word;
+      border: 1px solid rgba(214, 255, 239, .14);
+      border-radius: 15px;
+      padding: 13px;
+      background: rgba(0, 0, 0, .24);
+      color: rgba(244, 255, 249, .78);
+      line-height: 1.55;
+      font-size: 12px;
+    }
+
+    @media (max-width: 920px) {
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        padding: 16px;
+      }
+
+      .topbar {
+        align-items: flex-start;
+      }
+
+      .home {
+        justify-content: center;
+      }
+
+      .home-card {
+        margin-left: 0;
+      }
+
+      .panel {
+        max-height: none;
+      }
+
+      .option-grid,
+      .result-layout,
+      .chat-layout,
+      .flower-layout,
+      .report-grid {
+        grid-template-columns: 1fr;
+      }
+
+      .dialogue-panel {
+        border-left: 0;
+        border-top: 1px solid rgba(214, 255, 239, .11);
+      }
+
+      .chat-input {
+        grid-template-columns: 1fr;
+      }
+
+      .chat-layout {
+        height: auto;
+        overflow: visible;
+      }
+
+      .ultrasound-box {
+        min-height: 430px;
+      }
+    }
+  </style>
+</head>
+
+<body>
+  <div class="image-bg" aria-hidden="true"></div>
+
+  <main class="app">
+    <header class="topbar">
+      <div class="brand"><strong>Social Seed</strong> / Seed of Us</div>
+      <div class="top-actions">
+        <button onclick="goHome()">Home</button>
+        <button onclick="authGate('chat')">Chat</button>
+        <button onclick="authGate('flower')">Flower</button>
+        <button onclick="authGate('register')">Sign up</button>
+      </div>
+    </header>
+
+    <section id="home" class="page home active">
+      <div class="home-card">
+        <div class="eyebrow">Bio-digital group flower</div>
+        <h1>Social<br>Seed</h1>
+        <p>Enter a group through one questionnaire. Then three prototype days of group chat shape a blurred flower
+          ultrasound report.</p>
+        <div class="inline-actions">
+          <button class="primary-btn" onclick="authGate('chat')">Enter Chat</button>
+          <button class="ghost-btn" onclick="authGate('flower')">View Flower</button>
+        </div>
+      </div>
+    </section>
+
+    <section id="login" class="page panel-page">
+      <div class="panel narrow">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">User Login</div>
+          </div>
+          <button class="ghost-btn" onclick="goHome()">Back</button>
+        </div>
+        <div class="panel-body stack">
+          <input id="usernameInput" type="text" placeholder="Type your user name"
+            onkeydown="if(event.key==='Enter') loginUser()">
+          <div class="inline-actions">
+            <button class="primary-btn" onclick="loginUser()">Continue</button>
+            <button class="ghost-btn" onclick="resetPrototype()">Reset prototype</button>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <section id="questionnaire" class="page panel-page">
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">Seed Likert Questionnaire</div>
+          </div>
+          <button class="ghost-btn" onclick="goHome()">Home</button>
+        </div>
+        <div class="panel-body">
+          <form id="groupQuestionnaire" class="question-list"></form>
+          <div class="inline-actions" style="justify-content:space-between; margin-top:18px;">
+            <button class="ghost-btn" onclick="goHome()" type="button">Cancel</button>
+            <button class="ghost-btn" onclick="simulateConnectorGroup()" type="button">Prototype: 进入共鸣者</button>
+            <button class="primary-btn" onclick="submitGroupQuestionnaire()" type="button">Submit & Find My
+              Seed</button>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="groupResult" class="page panel-page">
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title">Seed Assigned</div>
+            <div class="panel-subtitle">种子已生成。下面是六组认同度得分和初始花朵倾向。</div>
+          </div>
+          <div class="top-actions">
+            <button onclick="showPage('chat')">Chat</button>
+            <button onclick="showPage('flower')">Flower</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="result-layout">
+            <div class="group-badge">
+              <div class="group-number" id="resultGroupNumber">Seed 1</div>
+              <div class="group-name" id="resultGroupName">建构者</div>
+              <p id="resultGroupDesc"></p>
+              <div class="chips" id="resultTraits"></div>
+            </div>
+            <div class="card">
+              <h3>Seed Scores</h3>
+              <div class="score-bars" id="scoreBars"></div>
+              <div class="inline-actions" style="margin-top:16px;">
+                <button class="primary-btn" onclick="showPage('chat')">Enter Seed Chat</button>
+                <button class="ghost-btn" onclick="showPage('flower')">View Initial Flower</button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section id="chat" class="page panel-page">
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title" id="chatTitle">Seed Chat</div>
+            <div class="panel-subtitle" id="chatSubtitle"></div>
+          </div>
+          <div class="top-actions">
+            <button onclick="showPage('flower')">Flower</button>
+            <button class="ghost-btn" onclick="resetDialogueOnly()">Reset Days</button>
+          </div>
+        </div>
+        <div class="chat-layout">
+          <div class="chat-main">
+            <div id="messages" class="messages"></div>
+            <div class="chat-input chat-controls">
+              <button class="primary-btn" id="playDayBtn" onclick="playTodayChatScript()" type="button">播放今日对话</button>
+              <button id="nextMessageBtn" onclick="showNextScriptMessage()" type="button">下一条</button>
+              <button id="enterQuizBtn" onclick="enterTodayQuestionnaire()" type="button">进入今日问卷</button>
+              <button class="ghost-btn" onclick="sendImagePrototype()" type="button">图片原型</button>
+            </div>
+          </div>
+          <aside class="dialogue-panel">
+            <div class="dialogue-inner">
+              <span class="day-tag" id="dayTag">Day 1</span>
+              <div>
+                <h3 id="dayTitle">Daily Check-in</h3>
+                <p id="dayIntro">选择每题最接近你当天状态的答案。提交后 Flower 数据会更新。</p>
+              </div>
+              <form id="dailyDialogueForm" class="question-list"></form>
+              <button class="primary-btn" id="submitDayBtn" onclick="submitDailyDialogue()" type="button">Submit Day
+                1</button>
+              <div class="card">
+                <h3>Seed → Flower Mapping</h3>
+                <div class="mapping-table" id="mappingTable"></div>
+              </div>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </section>
+
+    <section id="flower" class="page panel-page">
+      <div class="panel">
+        <div class="panel-header">
+          <div>
+            <div class="panel-title" id="flowerTitle">Flower Ultrasound Report</div>
+          </div>
+          <div class="top-actions">
+            <button onclick="authGate('chat')">Chat</button>
+            <button class="ghost-btn" onclick="goHome()">Home</button>
+          </div>
+        </div>
+        <div class="panel-body">
+          <div class="flower-layout">
+            <div class="ultrasound-box">
+              <div class="scan-label"><span id="scanDayLabel">INITIAL SCAN</span><span>SOCIAL SEED / B-SCAN</span></div>
+              <img id="flowerScanImage" class="ultrasound-image" src="images/1.png" alt="Flower B-scan stage image">
+              <div id="flowerSilhouette" class="silhouette"></div>
+            </div>
+            <div class="flower-report">
+              <div class="data-card">
+                <h2 id="reportHeading">Initial Flower State</h2>
+                <p id="reportSummary" style="margin-top:10px;"></p>
+                <div class="report-tabs" id="reportTabs"></div>
+              </div>
+              <div class="report-grid" id="metricsGrid"></div>
+              <div class="data-card">
+                <h3>Interpretation</h3>
+                <p id="interpretationText"></p>
+              </div>
+              <div class="data-card">
+                <h3>Final AI Image / 三视图 Prompt Data</h3>
+                <p class="small" style="margin-bottom:10px;">三轮完成后，这里会给出可复制给 AI 的最终花朵数据，用于生成最终图和建模三视图。</p>
+                <pre class="prompt-box" id="finalPromptBox">Final data is not ready yet.</pre>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script>
+    const STORAGE_KEY = 'social-seed-prototype-state-v3';
+    const CONNECTOR_INDEX = 2;
+
+    const FLOWER_SCAN_IMAGES = {
+      day1: 'images/1.png',
+      day2: 'images/2.png',
+      day3: 'images/3.png',
+      final: 'images/3.png'
+    };
+
+    const GROUPS = [
+      {
+        id: 1,
+        name: '建构者',
+        short: 'Architect',
+        desc: '理解是你的出口，逻辑是你的安全感。你会用思维重新组织情绪，直到混乱重新变得可以解释。',
+        traits: ['重新理解', '意义建构', '想通后稳定']
+      },
+      {
+        id: 2,
+        name: '封存者',
+        short: 'Vault',
+        desc: '你的内部世界比外表看起来丰富得多。你把很多东西安静地收起来，不是因为没有感受，而是因为不是所有感受都需要被看见。',
+        traits: ['内部消化', '不轻易示人', '安静保存']
+      },
+      {
+        id: 3,
+        name: '共鸣者',
+        short: 'Connector',
+        desc: '说出来，才算真的发生过。连接是你的能量来源，也是你处理情绪的方式。身边有人，你就有力量。',
+        traits: ['倾诉消化', '关系感知', '连接供能']
+      },
+      {
+        id: 4,
+        name: '行动者',
+        short: 'Kinetic',
+        desc: '停下来反而更难受。你用行动消化情绪，用专注替代感受。动起来，心里才有空间。',
+        traits: ['身体行动', '专注替代', '动起来消化']
+      },
+      {
+        id: 5,
+        name: '见证者',
+        short: 'Witness',
+        desc: '你不急着让情绪消失，也不急着说出来。它来了，你看着它，然后它走了。',
+        traits: ['允许情绪', '并行存在', '观察流动']
+      },
+      {
+        id: 6,
+        name: '漂移者',
+        short: 'Drifter',
+        desc: '转移是你的本能，专注是你的盾牌。刷手机、睡觉、忙起来，不是逃避，是你让自己撑过去的方式。停下来的时候，再说。',
+        traits: ['转移注意', '专注防护', '撑过去']
+      }
+    ];
+
+    const LIKERT_OPTIONS = [
+      { label: '1｜不认同', value: 1 },
+      { label: '2｜不太认同', value: 2 },
+      { label: '3｜中立', value: 3 },
+      { label: '4｜部分认同', value: 4 },
+      { label: '5｜完全认同', value: 5 }
+    ];
+
+    const ACTIVE_GROUP_QUESTIONS = [
+      { question: 'Q1. 情绪低落时，我会试着换一个角度重新理解这件事。', groupIndex: 0 },
+      { question: 'Q2. 遇到困难时，我习惯先弄清楚“为什么会这样”，再决定怎么感受它。', groupIndex: 0 },
+      { question: 'Q3. 我能把一件让我很难受的事，重新解读成对自己有益的经历。', groupIndex: 0 },
+      { question: 'Q4. 负面情绪出现时，我倾向于先在脑子里处理它，而不是立刻表达出来。', groupIndex: 0 },
+      { question: 'Q5. 当我情绪稳定下来，通常是因为我“想通了”某件事。', groupIndex: 0 },
+      { question: 'Q6. 即使情绪很强烈，我也很少在他人面前表现出来。', groupIndex: 1 },
+      { question: 'Q7. 我习惯独自消化情绪，不太需要别人知道我的状态。', groupIndex: 1 },
+      { question: 'Q8. 在大多数情况下，我会压住情绪，等到合适的时机再处理。', groupIndex: 1 },
+      { question: 'Q9. 别人很少能准确判断我现在的心情。', groupIndex: 1 },
+      { question: 'Q10. 我觉得把情绪藏起来，是一种对自己和他人负责的方式。', groupIndex: 1 },
+      { question: 'Q11. 有情绪的时候，我第一反应是找一个人说。', groupIndex: 2 },
+      { question: 'Q12. 把事情讲出来之后，我会感觉好很多，哪怕对方没有给任何建议。', groupIndex: 2 },
+      { question: 'Q13. 如果身边没有可以倾诉的人，我的情绪会很难消化。', groupIndex: 2 },
+      { question: 'Q14. 我喜欢在对话中理清自己的感受，说着说着就知道自己在想什么了。', groupIndex: 2 },
+      { question: 'Q15. 一段情绪“过去了”，通常是因为有人听我说完了。', groupIndex: 2 },
+      { question: 'Q16. 心情不好的时候，我会去做一件具体的事，不一定和情绪有关。', groupIndex: 3 },
+      { question: 'Q17. 让身体动起来之后，情绪会比坐着想更快消散。', groupIndex: 3 },
+      { question: 'Q18. 我习惯用“忙起来”的方式度过情绪低落的时期。', groupIndex: 3 },
+      { question: 'Q19. 专注在一件手头的事情里，是我让自己平静下来最有效的方法。', groupIndex: 3 },
+      { question: 'Q20. 与其坐在那里感受情绪，我更想去做点什么，做饭、整理、画画、走路都行。', groupIndex: 3 },
+      { question: 'Q21. 情绪来了，我会给它一些时间，不急着让它消失。', groupIndex: 4 },
+      { question: 'Q22. 我可以在很强烈的情绪里待着，而不觉得必须立刻处理它。', groupIndex: 4 },
+      { question: 'Q23. 我不太需要把情绪说出来或者做什么，它自己会慢慢过去。', groupIndex: 4 },
+      { question: 'Q24. 即使情绪很重，我也能同时继续做该做的事，它和我并行存在。', groupIndex: 4 },
+      { question: 'Q25. 我的情绪很少需要被“解决”，它来了，我观察它，然后它走了。', groupIndex: 4 },
+      { question: 'Q26. 情绪低落时，我会主动找一些事情转移注意力。', groupIndex: 5 },
+      { question: 'Q27. 刷手机、看视频或者睡觉，是我度过低谷期最常用的方式。', groupIndex: 5 },
+      { question: 'Q28. 我倾向于不去深想那些让我难受的事，时间久了自然就好了。', groupIndex: 5 },
+      { question: 'Q29. 忙起来是我最好的情绪解药，停下来反而容易胡思乱想。', groupIndex: 5 },
+      { question: 'Q30. 我很少主动“面对”情绪，更多是等它自己消失。', groupIndex: 5 }
+    ];
+
+    const CONNECTOR_STORY = {
+      groupTitle: '🌊 共鸣者 Connector Group',
+      plantName: '共鸣兰',
+      subtitle: '这株植物记录的不是问题是否被解决，而是连接是否产生。',
+      members: [
+        { name: 'A', role: '24岁｜算法工程师', context: '模型 Bug 后陷入自我怀疑。' },
+        { name: 'B', role: '26岁｜用户运营', context: '活动方案被否后开始怀疑自己。' },
+        { name: 'C', role: '25岁｜XR 交互设计师', context: '项目反复修改，压力和焦虑上升。' }
+      ],
+      finalSummary: '这株共鸣兰并不是根据“问题是否被解决”生成的。它记录的是三位用户在三天对话中逐渐形成的连接。第一天，情绪被说出，种子中央出现第一条脉络。第二天，共鸣加深，枝条开始弯曲、分叉，并呈现不对称生长。第三天，用户开始记住彼此，末端生成更多发光节点，顶部形成尚未完全打开的透明种荚。它没有完全盛开，因为他们的故事还没有结束。但它已经获得了继续生长的能力。'
+    };
+
+    const CHAT_SCRIPTS = {
+      1: [
+        { speaker: 'System', text: 'Day 1｜分享发生', type: 'system' },
+        { speaker: 'A', text: '今天模型效果突然下降，测试数据和训练数据完全对不上。', type: 'other' },
+        { speaker: 'A', text: '其实事情不算特别严重，但我一直在怀疑是不是自己哪里做错了。', type: 'other' },
+        { speaker: 'B', text: '我懂。最烦的不是工作难，是开始怀疑自己。', type: 'other' },
+        { speaker: 'C', text: '我发现每次最崩溃的时候，都是在脑子里反复复盘自己哪里不够好。', type: 'other' },
+        { speaker: 'System', text: '今日共鸣记录：情绪被表达，中央脉络被点亮。', type: 'system' }
+      ],
+      2: [
+        { speaker: 'System', text: 'Day 2｜共鸣发生', type: 'system' },
+        { speaker: 'A', text: '我一直以为只有我会这样想。', type: 'other' },
+        { speaker: 'B', text: '其实我们办公室每个人都这样。', type: 'other' },
+        { speaker: 'C', text: '可能大家看起来都挺厉害，但实际上都在偷偷焦虑。', type: 'other' },
+        { speaker: 'System', text: '系统提问：如果这颗种子长大，它会变成什么？', type: 'system' },
+        { speaker: 'A', text: '不要是完美的花。', type: 'other' },
+        { speaker: 'B', text: '希望有一些弯曲的枝条。', type: 'other' },
+        { speaker: 'C', text: '因为生长本来就不是直线。', type: 'other' },
+        { speaker: 'System', text: '今日共鸣记录：枝条开始弯曲，植物出现不对称生长。', type: 'system' }
+      ],
+      3: [
+        { speaker: 'System', text: 'Day 3｜连接发生', type: 'system' },
+        { speaker: 'A', text: '问题还没解决，但我今天没昨天那么慌。', type: 'other' },
+        { speaker: 'B', text: '我发现自己开始期待晚上聊天。', type: 'other' },
+        { speaker: 'C', text: '以前遇到问题会觉得只有我一个人卡住。现在感觉大家都在长。', type: 'other' },
+        { speaker: 'System', text: '他们开始记住彼此：A 喜欢玩《文明》，B 喜欢夜跑，C 习惯半夜画草图。', type: 'system' },
+        { speaker: 'System', text: '今日共鸣记录：记忆节点生成，顶部形成未完全打开的透明种荚。', type: 'system' }
+      ]
+    };
+
+    const CONNECTOR_DAILY_QUESTIONS = {
+      1: {
+        title: 'Day 1｜分享发生',
+        intro: '主题：从“独自承受”到“情绪被说出”。',
+        focus: ['expression', 'resonance', 'vulnerability', 'centralVein', 'firstConnectionNodes'],
+        questions: [
+          {
+            question: '今天让你停下来最久的，不一定是事情本身，而是它带来的哪种感受？',
+            options: [
+              { label: '我一直在想，是不是我哪里做错了。', reward: { expression: 2, vulnerability: 2, centralVein: 2 } },
+              { label: '我没有很想说，只是觉得心里有点卡住。', reward: { expression: 1, vulnerability: 1, centralVein: 1 } },
+              { label: '我想先把事情弄清楚，再决定自己该不该难受。', reward: { expression: 1, vulnerability: 0, centralVein: 1 } },
+              { label: '我其实不太想让别人知道这件事影响了我。', reward: { expression: 0, vulnerability: 1, centralVein: 0 } }
+            ]
+          },
+          {
+            question: '当别人说“我懂”的时候，你更接近哪种反应？',
+            options: [
+              { label: '好像终于不用解释那么多了。', reward: { resonance: 3, calmness: 1, firstConnectionNodes: 2 } },
+              { label: '我会有点怀疑，对方是不是真的懂。', reward: { resonance: 1, vulnerability: 1, firstConnectionNodes: 1 } },
+              { label: '即使只是这两个字，也会让我轻一点。', reward: { resonance: 2, calmness: 2, firstConnectionNodes: 2 } },
+              { label: '我更希望对方直接告诉我该怎么办。', reward: { resonance: 0, expression: 1, firstConnectionNodes: 0 } }
+            ]
+          },
+          {
+            question: '如果今晚的情绪留下一个痕迹，它更像什么？',
+            options: [
+              { label: '一条刚刚亮起来的线。', reward: { expression: 2, centralVein: 3 } },
+              { label: '一个还没打开的结。', reward: { vulnerability: 2, centralVein: 1 } },
+              { label: '一个很小但有人回应的光点。', reward: { resonance: 2, firstConnectionNodes: 3 } },
+              { label: '一层不太明显的雾。', reward: { expression: 1, calmness: 0, centralVein: 1 } }
+            ]
+          }
+        ]
+      },
+      2: {
+        title: 'Day 2｜共鸣发生',
+        intro: '主题：从“交换情绪”到“理解彼此”。',
+        focus: ['understanding', 'vulnerability', 'curl', 'asymmetry', 'interweave', 'imagination'],
+        questions: [
+          {
+            question: '今天的聊天里，哪一刻让你觉得“原来不只是我这样”？',
+            options: [
+              { label: '听到别人也会反复怀疑自己。', reward: { understanding: 3, resonance: 2, interweave: 2 } },
+              { label: '听到别人也在努力装作没事。', reward: { understanding: 2, vulnerability: 2, interweave: 1 } },
+              { label: '听到别人也有跟不上世界的感觉。', reward: { understanding: 3, vulnerability: 2, interweave: 2 } },
+              { label: '其实我还没有很强烈的这种感觉。', reward: { understanding: 1, resonance: 0, interweave: 0 } }
+            ]
+          },
+          {
+            question: '如果把今天的成长画成一条线，你觉得它更像哪一种？',
+            options: [
+              { label: '不是直线，而是绕了一下才继续往前。', reward: { curl: 3, asymmetry: 1, imagination: 1 } },
+              { label: '一边向上，一边向旁边伸出去。', reward: { asymmetry: 3, curl: 1, imagination: 1 } },
+              { label: '好几条线互相碰到，又分开。', reward: { interweave: 3, understanding: 2, curl: 1 } },
+              { label: '还看不出方向，只是比昨天清楚一点。', reward: { centralVein: 1, calmness: 1, continuity: 1 } }
+            ]
+          },
+          {
+            question: '如果这颗种子不是一朵“完美的花”，你希望它保留什么？',
+            options: [
+              { label: '保留弯曲的枝条。', reward: { curl: 3, imagination: 2 } },
+              { label: '保留不对称的生长方向。', reward: { asymmetry: 3, imagination: 2 } },
+              { label: '保留几条互相缠绕的连接。', reward: { interweave: 3, understanding: 2 } },
+              { label: '保留还没长完的感觉。', reward: { imagination: 2, vulnerability: 1, continuity: 1 } }
+            ]
+          }
+        ]
+      },
+      3: {
+        title: 'Day 3｜连接发生',
+        intro: '主题：从“理解彼此”到“记住彼此”。',
+        focus: ['memory', 'continuity', 'connectionStrength', 'calmness', 'seedPod', 'finalGrowth'],
+        questions: [
+          {
+            question: '今天再次聊起这些问题时，你发现自己的状态有什么变化？',
+            options: [
+              { label: '问题还在，但我没有昨天那么慌。', reward: { calmness: 3, continuity: 2, finalGrowth: 1 } },
+              { label: '我开始期待晚上能和他们说说。', reward: { connectionStrength: 3, continuity: 2, memory: 1 } },
+              { label: '我还是很累，但不再觉得只有自己卡住。', reward: { understanding: 2, calmness: 2, connectionStrength: 2 } },
+              { label: '我还不知道有没有变化，但我愿意继续看看。', reward: { continuity: 3, finalGrowth: 1 } }
+            ]
+          },
+          {
+            question: '聊了几天后，你记住了别人身上的什么？',
+            options: [
+              { label: '记住了他们正在经历的压力。', reward: { memory: 2, connectionStrength: 2 } },
+              { label: '记住了他们的一些习惯和细节。', reward: { memory: 3, memoryNodes: 3 } },
+              { label: '记住了他们表达情绪的方式。', reward: { memory: 2, understanding: 2, interweave: 1 } },
+              { label: '还没有记住很多，但知道他们也在努力。', reward: { memory: 1, connectionStrength: 1, continuity: 1 } }
+            ]
+          },
+          {
+            question: '如果这株植物今天停在这里，它应该是什么状态？',
+            options: [
+              { label: '不是盛开，而是还会继续长。', reward: { seedPod: 3, finalGrowth: 2, continuity: 2 } },
+              { label: '有几个透明的种荚，像还没说完的话。', reward: { seedPod: 3, vulnerability: 1, memory: 2 } },
+              { label: '三条枝条方向不同，但已经连在一起。', reward: { interweave: 2, connectionStrength: 3, finalGrowth: 2 } },
+              { label: '它应该安静一点，像把这几天保存起来。', reward: { calmness: 2, memory: 2, seedPod: 1 } }
+            ]
+          }
+        ]
+      }
+    };
+
+    const FLOWER_METRIC_DEFINITIONS = {
+      expression: { label: '情绪表达', affects: ['中央脉络', '主干亮度'], description: '情绪第一次被说出时，种子中央的声带/神经结构被点亮。' },
+      resonance: { label: '共鸣回应', affects: ['共鸣节点', '连接光点'], description: '每一次回应都会让主脉络周围生成新的发光节点。' },
+      vulnerability: { label: '脆弱暴露', affects: ['内部透明度', '纹理可见度'], description: '当用户说出更深层的感受，植物内部结构变得更可见。' },
+      understanding: { label: '相互理解', affects: ['枝条交织', '连接密度'], description: '当对话从个人情绪进入共同经验，枝条开始互相交织。' },
+      imagination: { label: '植物想象', affects: ['非现实结构', '特殊形态'], description: '关于植物的想象会让花朵保留不完美、非现实和未完成的结构。' },
+      asymmetry: { label: '非对称生长', affects: ['左右差异', '侧向分支'], description: '成长不是完美对称的，左右枝条会出现不同方向。' },
+      curl: { label: '弯曲程度', affects: ['枝条曲率', '卷曲结构'], description: '弯曲枝条代表成长过程中的绕路和痕迹。' },
+      continuity: { label: '连续参与', affects: ['主干稳定', '阶段推进'], description: '连续三天的参与让植物从被激活逐渐进入稳定生长。' },
+      memory: { label: '彼此记忆', affects: ['末端节点', '记忆光点'], description: '被记住的个人细节会在枝条末端形成新的光点。' },
+      calmness: { label: '情绪稳定', affects: ['整体光晕', '闪烁幅度'], description: '问题没有消失，但情绪变得更稳定，光晕也更平缓。' },
+      centralVein: { label: '中央脉络', affects: ['主脉络亮度'], description: '第一批被说出的情绪会在花体中心形成可见脉络。' },
+      firstConnectionNodes: { label: '初始连接点', affects: ['早期节点'], description: '最初的“我懂”和“我也这样”会生成少量连接光点。' },
+      interweave: { label: '枝条交织', affects: ['枝条重叠', '连接密度'], description: '相似经验被交换之后，枝条开始相互靠近和交织。' },
+      connectionStrength: { label: '连接强度', affects: ['三向枝条', '群体稳定'], description: '三位用户之间的持续回应会让主要生长方向变得清晰。' },
+      seedPod: { label: '未完成种荚', affects: ['顶部透明种荚'], description: '故事还没结束，因此顶部不是盛开的花，而是未完全打开的透明种荚。' },
+      finalGrowth: { label: '继续生长', affects: ['最终形态', '生长潜能'], description: '它没有完全盛开，但已经获得继续生长的能力。' },
+      memoryNodes: { label: '记忆节点', affects: ['末端发光点'], description: '被记住的细节会在枝条末端形成更明确的光点。' }
+    };
+
+    const FLOWER_STAGE_DESCRIPTIONS = {
+      initial: '完成 Day 1 问卷后，第一张共鸣兰 B 超图才会出现。',
+      1: '今天，情绪第一次被说出。中央脉络被点亮，少量共鸣节点开始出现。这株共鸣兰还没有开花，它只是第一次被听见。',
+      2: '今天，对话从“我也这样”进入“原来我们都这样”。相互理解让枝条开始交织，弯曲和不对称记录了非直线的成长。',
+      3: '今天，问题并没有完全解决，但连接已经产生。被记住的细节在枝条末端形成光点，顶部的透明种荚代表故事仍会继续生长。'
+    };
+
+    let playbackTimer = null;
+
+    function emptyFlowerData() {
+      const data = {};
+      Object.keys(FLOWER_METRIC_DEFINITIONS).forEach(function (key) {
+        data[key] = 0;
+      });
+      return data;
+    }
+
+    const defaultState = {
+      username: '',
+      pendingAction: 'home',
+      assignedGroupIndex: null,
+      groupScores: [0, 0, 0, 0, 0, 0],
+      currentDay: 1,
+      completedDays: 0,
+      currentFlowerStage: 0,
+      reportView: 'initial',
+      messagesInitialized: false,
+      dailyQuizUnlocked: false,
+      flowerData: emptyFlowerData(),
+      daySnapshots: [],
+      chatProgress: { 1: 0, 2: 0, 3: 0 }
+    };
+
+    let state = structuredClone(defaultState);
+    localStorage.removeItem(STORAGE_KEY);
+
+    function saveState() {
+      /* Prototype mode: do not persist progress.
+         Refreshing or reopening this HTML should always restart from login. */
+    }
+
+    function hasGroup() {
+      return state.assignedGroupIndex !== null && state.assignedGroupIndex !== undefined;
+    }
+
+    function clamp(v, min, max) {
+      return Math.max(min, Math.min(max, v));
+    }
+
+    function clampFlowerData(data) {
+      Object.keys(data).forEach(function (key) {
+        data[key] = clamp(data[key], 0, 100);
+      });
+    }
+
+    function escapeHtml(value) {
+      return String(value).replace(/[&<>"']/g, function (char) {
+        return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' })[char];
+      });
+    }
+
+    function showPage(id) {
+      if ((id === 'chat' || id === 'flower') && !hasGroup()) {
+        showPageRaw('questionnaire');
+        return;
+      }
+      showPageRaw(id);
+      if (id === 'chat') initializeMessagesIfNeeded();
+    }
+
+    function showPageRaw(id) {
+      document.querySelectorAll('.page').forEach(function (page) { page.classList.remove('active'); });
+      document.getElementById(id).classList.add('active');
+      updateAllUI();
+      saveState();
+    }
+
+    function goHome() {
+      showPageRaw('home');
+    }
+
+    function authGate(action) {
+      state.pendingAction = action;
+      if (!state.username) {
+        showPageRaw('login');
+        return;
+      }
+      routeAfterLogin(action);
+    }
+
+    function loginUser() {
+      const input = document.getElementById('usernameInput');
+      const name = input.value.trim();
+      if (!name) {
+        alert('Please enter a user name.');
+        return;
+      }
+      state.username = name;
+      saveState();
+      routeAfterLogin(state.pendingAction);
+    }
+
+    function routeAfterLogin(action) {
+      if (hasGroup()) {
+        if (action === 'flower') showPage('flower');
+        else if (action === 'register') showPage('groupResult');
+        else showPage('chat');
+        return;
+      }
+      showPageRaw('questionnaire');
+    }
+
+    function renderGroupQuestionnaire() {
+      const form = document.getElementById('groupQuestionnaire');
+      form.innerHTML = '<div class="likert-guide"><strong>认同度说明：</strong>5 = 完全认同，4 = 部分认同，3 = 中立，2 = 不太认同，1 = 不认同。</div>' +
+        ACTIVE_GROUP_QUESTIONS.map(function (q, qi) {
+          return '<div class="question-card">' +
+            '<h3><span class="q-index">Q' + (qi + 1) + '</span>' + escapeHtml(q.question) + '</h3>' +
+            '<div class="likert-scale" id="likert-scale-' + qi + '" onmouseleave="restoreLikertScale(' + qi + ')">' +
+            LIKERT_OPTIONS.map(function (option) {
+              return '<label class="likert-option" data-value="' + option.value + '" title="' + escapeHtml(option.label) + '" onmouseenter="previewLikertScale(' + qi + ', ' + option.value + ')">' +
+                '<input type="radio" name="group-q-' + qi + '" value="' + option.value + '" onchange="updateLikertScale(' + qi + ', ' + option.value + ')">' +
+                '<span class="likert-dot" aria-hidden="true"></span>' +
+                '<span class="likert-number">' + option.value + '</span>' +
+                '</label>';
+            }).join('') +
+            '</div></div>';
+        }).join('');
+    }
+
+    function updateLikertScale(questionIndex, value) {
+      const scale = document.getElementById('likert-scale-' + questionIndex);
+      if (!scale) return;
+      scale.dataset.selectedValue = value;
+      paintLikertScale(scale, value);
+    }
+
+    function previewLikertScale(questionIndex, value) {
+      const scale = document.getElementById('likert-scale-' + questionIndex);
+      if (!scale) return;
+      paintLikertScale(scale, value);
+    }
+
+    function restoreLikertScale(questionIndex) {
+      const scale = document.getElementById('likert-scale-' + questionIndex);
+      if (!scale) return;
+      paintLikertScale(scale, scale.dataset.selectedValue || 0);
+    }
+
+    function paintLikertScale(scale, value) {
+      const numericValue = Math.max(0, Math.min(5, Number(value)));
+      const scaleWidth = scale.getBoundingClientRect ? scale.getBoundingClientRect().width : 0;
+      const trackInset = 7;
+      const pointCenter = numericValue > 0 ? ((numericValue - 0.5) / 5) * scaleWidth : trackInset;
+      const fillWidth = Math.max(0, pointCenter - trackInset);
+      scale.style.setProperty('--fill-width', fillWidth + 'px');
+      scale.querySelectorAll('.likert-option').forEach(function (option) {
+        option.classList.toggle('is-filled', Number(option.dataset.value) <= numericValue);
+      });
+    }
+
+    window.addEventListener('resize', function () {
+      document.querySelectorAll('.likert-scale').forEach(function (scale) {
+        paintLikertScale(scale, scale.dataset.selectedValue || 0);
+      });
+    });
+
+    function submitGroupQuestionnaire() {
+      const scores = [0, 0, 0, 0, 0, 0];
+      const answers = [];
+      for (let qi = 0; qi < ACTIVE_GROUP_QUESTIONS.length; qi++) {
+        const selected = document.querySelector('input[name="group-q-' + qi + '"]:checked');
+        if (!selected) {
+          alert('Please answer question ' + (qi + 1) + '.');
+          return;
+        }
+        const score = Number(selected.value);
+        answers[qi] = score;
+        scores[ACTIVE_GROUP_QUESTIONS[qi].groupIndex] += score;
+      }
+      const maxScore = Math.max.apply(null, scores);
+      const tied = scores.map(function (score, index) { return score === maxScore ? index : -1; }).filter(function (index) { return index >= 0; });
+      assignGroup(resolveSeedTie(tied, answers), scores);
+    }
+
+    function simulateConnectorGroup() {
+      assignGroup(CONNECTOR_INDEX, [12, 10, 30, 11, 10, 9]);
+    }
+
+    function assignGroup(index, scores) {
+      state.groupScores = scores;
+      state.assignedGroupIndex = index;
+      state.flowerData = emptyFlowerData();
+      state.currentDay = 1;
+      state.completedDays = 0;
+      state.currentFlowerStage = 0;
+      state.reportView = 'initial';
+      state.messagesInitialized = false;
+      state.dailyQuizUnlocked = false;
+      state.daySnapshots = [];
+      state.chatProgress = { 1: 0, 2: 0, 3: 0 };
+      saveState();
+      showPage('chat');
+    }
+
+    function resolveSeedTie(tied, answers) {
+      if (tied.length === 1) return tied[0];
+      const pairRules = [
+        { pair: [0, 1], questions: [1, 6] },
+        { pair: [4, 5], questions: [21, 27] },
+        { pair: [2, 3], questions: [10, 15] }
+      ];
+      for (const rule of pairRules) {
+        const a = rule.pair[0];
+        const b = rule.pair[1];
+        if (tied.includes(a) && tied.includes(b)) {
+          const qa = rule.questions[0];
+          const qb = rule.questions[1];
+          if (answers[qa] !== answers[qb]) return answers[qa] > answers[qb] ? a : b;
+        }
+      }
+      const anchorQuestions = [0, 5, 10, 15, 20, 25];
+      return tied.reduce(function (best, index) {
+        const currentAnchor = answers[anchorQuestions[index]] || 0;
+        const bestAnchor = answers[anchorQuestions[best]] || 0;
+        return currentAnchor > bestAnchor ? index : best;
+      }, tied[0]);
+    }
+
+    function initializeMessagesIfNeeded() {
+      if (state.messagesInitialized || !hasGroup()) return;
+      const group = GROUPS[state.assignedGroupIndex];
+      const box = document.getElementById('messages');
+      box.innerHTML = '';
+      addMessage('System', (state.username || 'User') + ' 进入了：' + group.name + ' / ' + group.short + '。', 'system');
+      addMessage(group.name, group.desc, 'system');
+      if (state.assignedGroupIndex === CONNECTOR_INDEX) {
+        addMessage('System', CONNECTOR_STORY.groupTitle + ' 已开启。点击“播放今日对话”或“下一条”开始 Day 1。', 'system');
+      } else {
+        addMessage('System', '当前 prototype 的完整三天演示聚焦“共鸣者 Connector / 共鸣兰”。你也可以回到分组问卷点击“Prototype: 进入共鸣者”。', 'system');
+      }
+      state.messagesInitialized = true;
+      saveState();
+    }
+
+    function addMessage(user, text, type) {
+      const box = document.getElementById('messages');
+      if (!box) return;
+      const div = document.createElement('div');
+      div.className = 'message ' + (type || 'other');
+      const name = document.createElement('span');
+      name.className = 'name';
+      name.textContent = user;
+      div.appendChild(name);
+      div.appendChild(document.createTextNode(text));
+      box.appendChild(div);
+      box.scrollTop = box.scrollHeight;
+    }
+
+    function getCurrentScript() {
+      return CHAT_SCRIPTS[state.currentDay] || [];
+    }
+
+    function isCurrentChatComplete() {
+      if (state.completedDays >= 3) return true;
+      return (state.chatProgress[state.currentDay] || 0) >= getCurrentScript().length;
+    }
+
+    function showNextScriptMessage() {
+      if (!hasGroup()) {
+        showPageRaw('questionnaire');
+        return;
+      }
+      if (state.completedDays >= 3) return;
+      initializeMessagesIfNeeded();
+      const script = getCurrentScript();
+      const progress = state.chatProgress[state.currentDay] || 0;
+      if (progress >= script.length) {
+        renderDailyDialogue();
+        renderChatControls();
+        return;
+      }
+      const item = script[progress];
+      addMessage(item.speaker, item.text, item.type);
+      state.chatProgress[state.currentDay] = progress + 1;
+      if (state.chatProgress[state.currentDay] >= script.length) {
+        addMessage('System', 'Day ' + state.currentDay + ' 对话已完成。现在可以进入今日问卷。', 'system');
+      }
+      saveState();
+      updateAllUI();
+    }
+
+    function playTodayChatScript() {
+      if (playbackTimer) clearInterval(playbackTimer);
+      showNextScriptMessage();
+      playbackTimer = setInterval(function () {
+        if (isCurrentChatComplete()) {
+          clearInterval(playbackTimer);
+          playbackTimer = null;
+          updateAllUI();
+          return;
+        }
+        showNextScriptMessage();
+      }, 650);
+    }
+
+    function enterTodayQuestionnaire() {
+      if (!isCurrentChatComplete() || state.completedDays >= 3) return;
+      state.dailyQuizUnlocked = true;
+      saveState();
+      renderDailyDialogue();
+      renderChatControls();
+    }
+
+    function renderDailyDialogue() {
+      const form = document.getElementById('dailyDialogueForm');
+      const submitBtn = document.getElementById('submitDayBtn');
+      const finished = state.completedDays >= 3;
+      const dayConfig = CONNECTOR_DAILY_QUESTIONS[state.currentDay];
+
+      document.getElementById('dayTag').textContent = finished ? 'Final' : 'Day ' + state.currentDay;
+      document.getElementById('dayTitle').textContent = finished ? '最终共鸣兰总结' : (dayConfig ? dayConfig.title : 'Daily Check-in');
+      document.getElementById('dayIntro').textContent = finished ? CONNECTOR_STORY.finalSummary : (dayConfig ? dayConfig.intro : '先完成今日对话，再进入问卷。');
+
+      if (finished) {
+        submitBtn.style.display = 'none';
+        form.innerHTML = '<div class="card"><h3>三天流程已完成</h3><p>' + escapeHtml(CONNECTOR_STORY.finalSummary) + '</p></div>';
+        return;
+      }
+
+      if (!state.dailyQuizUnlocked) {
+        submitBtn.style.display = 'none';
+        const chatComplete = isCurrentChatComplete();
+        const copy = chatComplete
+          ? '点击按钮进入问卷，把这一天的回应转化为花朵数据。'
+          : '聊天结束后，今日问卷会解锁。';
+        const enterButton = chatComplete
+          ? '<div class="inline-actions" style="margin-top:14px;"><button class="primary-btn" onclick="enterTodayQuestionnaire()" type="button">进入 Day ' + state.currentDay + ' 问卷</button></div>'
+          : '';
+        form.innerHTML = '<div class="card"><h3>Chat first</h3><p>' + escapeHtml(copy) + '</p>' + enterButton + '</div>';
+        return;
+      }
+
+      submitBtn.style.display = 'inline-block';
+      submitBtn.disabled = false;
+      submitBtn.textContent = '提交 Day ' + state.currentDay + ' 问卷';
+      form.innerHTML = dayConfig.questions.map(function (q, qi) {
+        return '<div class="question-card">' +
+          '<h3><span class="q-index">' + (qi + 1) + '</span>' + escapeHtml(q.question) + '</h3>' +
+          '<div class="emotion-options">' +
+          q.options.map(function (option, oi) {
+            const optionLetter = String.fromCharCode(65 + oi);
+            return '<label class="option emotion-option">' +
+              '<input type="radio" name="day-' + state.currentDay + '-q-' + qi + '" value="' + oi + '">' +
+              '<strong>' + optionLetter + '｜' + escapeHtml(option.label) + '</strong>' +
+              '<div class="small">reward: ' + escapeHtml(formatReward(option.reward)) + '</div>' +
+              '</label>';
+          }).join('') +
+          '</div></div>';
+      }).join('');
+    }
+
+    function applyDailyRewards(day, answers) {
+      const config = CONNECTOR_DAILY_QUESTIONS[day];
+      const delta = emptyFlowerData();
+      const selected = [];
+      answers.forEach(function (optionIndex, questionIndex) {
+        const question = config.questions[questionIndex];
+        const option = question.options[optionIndex];
+        selected.push({
+          question: question.question,
+          label: option.label,
+          reward: { ...option.reward }
+        });
+        Object.entries(option.reward).forEach(function (entry) {
+          const key = entry[0];
+          const value = entry[1];
+          if (delta[key] === undefined) delta[key] = 0;
+          delta[key] += value;
+        });
+      });
+      Object.entries(delta).forEach(function (entry) {
+        const key = entry[0];
+        const value = entry[1];
+        state.flowerData[key] = (state.flowerData[key] || 0) + value;
+      });
+      clampFlowerData(state.flowerData);
+      return { delta: delta, selected: selected };
+    }
+
+    function getFlowerStage(metrics, currentDay) {
+      if (currentDay <= 1) return 1;
+      if (currentDay === 2) return 2;
+      return 3;
+    }
+
+    function getMorphologyExplanation(day, metricsDelta) {
+      const changed = Object.entries(metricsDelta).filter(function (entry) { return entry[1] > 0; }).map(function (entry) {
+        const definition = FLOWER_METRIC_DEFINITIONS[entry[0]];
+        return (definition ? definition.label : entry[0]) + ' +' + entry[1];
+      });
+      return FLOWER_STAGE_DESCRIPTIONS[day] + ' 今日增长：' + changed.join('，') + '。';
+    }
+
+    function updateFlowerView(stage, metrics) {
+      state.currentFlowerStage = stage;
+      state.reportView = stage >= 3 ? 'final' : 'day' + stage;
+      renderFlowerReport();
+    }
+
+    function submitDailyDialogue() {
+      if (state.completedDays >= 3 || !state.dailyQuizUnlocked) return;
+      const day = state.currentDay;
+      const config = CONNECTOR_DAILY_QUESTIONS[day];
+      const answers = [];
+      for (let qi = 0; qi < config.questions.length; qi++) {
+        const selected = document.querySelector('input[name="day-' + day + '-q-' + qi + '"]:checked');
+        if (!selected) {
+          alert('Please answer Day ' + day + ' question ' + (qi + 1) + '.');
+          return;
+        }
+        answers.push(Number(selected.value));
+      }
+
+      const result = applyDailyRewards(day, answers);
+      const stage = getFlowerStage(state.flowerData, day);
+      const explanation = getMorphologyExplanation(day, result.delta);
+      state.currentFlowerStage = stage;
+      state.completedDays = Math.max(state.completedDays, day);
+      state.daySnapshots[day - 1] = {
+        label: 'Day ' + day,
+        day: day,
+        stage: stage,
+        data: { ...state.flowerData },
+        delta: { ...result.delta },
+        selectedAnswers: result.selected,
+        summary: explanation
+      };
+
+      addMessage('AI Summary', 'Day ' + day + ' 问卷已汇总：' + formatPositiveDelta(result.delta) + '。', 'system');
+      addMessage('Flower B-Scan', explanation, 'other');
+
+      state.dailyQuizUnlocked = false;
+      state.reportView = stage >= 3 ? 'final' : 'day' + stage;
+      if (day >= 3) {
+        state.completedDays = 3;
+        state.currentDay = 3;
+        addMessage('System', '三天共鸣流程完成。最终共鸣兰数据已固定在 Flower 页面。', 'system');
+      } else {
+        state.currentDay = day + 1;
+        addMessage('System', '进入 Day ' + state.currentDay + '。点击“播放今日对话”继续。', 'system');
+      }
+      saveState();
+      updateAllUI();
+    }
+
+    function sendImagePrototype() {
+      if (!hasGroup()) {
+        showPageRaw('questionnaire');
+        return;
+      }
+      addMessage(state.username || 'You', '[图片上传原型：这张图会被 AI 汇总为今日情绪纹理。]', 'me');
+      setTimeout(function () {
+        addMessage('AI Summary', 'Prototype summary: 图片的颜色、质感和情绪氛围会进入今日共鸣兰报告。', 'system');
+      }, 300);
+    }
+
+    function renderGroupResult() {
+      if (!hasGroup()) return;
+      const group = GROUPS[state.assignedGroupIndex];
+      document.getElementById('resultGroupNumber').textContent = 'Seed ' + group.id;
+      document.getElementById('resultGroupName').textContent = group.name;
+      document.getElementById('resultGroupDesc').textContent = group.desc;
+      document.getElementById('resultTraits').innerHTML = group.traits.map(function (trait) {
+        return '<span class="chip hot">' + escapeHtml(trait) + '</span>';
+      }).join('');
+
+      const max = Math.max.apply(null, state.groupScores.concat([1]));
+      document.getElementById('scoreBars').innerHTML = GROUPS.map(function (item, index) {
+        return '<div class="score-row">' +
+          '<span>G' + item.id + ' ' + escapeHtml(item.name) + '</span>' +
+          '<div class="bar"><span style="width:' + ((state.groupScores[index] / max) * 100) + '%"></span></div>' +
+          '<strong>' + state.groupScores[index] + '</strong>' +
+          '</div>';
+      }).join('');
+    }
+
+    function renderMappingTable() {
+      const keys = ['expression', 'resonance', 'vulnerability', 'understanding', 'interweave', 'asymmetry', 'curl', 'memory', 'continuity', 'seedPod'];
+      document.getElementById('mappingTable').innerHTML = keys.map(function (key) {
+        const item = FLOWER_METRIC_DEFINITIONS[key];
+        return '<div class="mapping-row"><strong>' + item.label + '<br><span class="small">' + key + '</span></strong><span>' + item.description + '</span></div>';
+      }).join('');
+    }
+
+    function renderFlowerReport() {
+      const group = hasGroup() ? GROUPS[state.assignedGroupIndex] : null;
+      document.getElementById('flowerTitle').textContent = group
+        ? (state.assignedGroupIndex === CONNECTOR_INDEX ? CONNECTOR_STORY.plantName : group.name) + ' Flower Ultrasound Report'
+        : 'Flower Ultrasound Report';
+
+      const tabs = [];
+      if (!state.daySnapshots.length) tabs.push({ key: 'initial', label: 'Initial' });
+      for (let i = 1; i <= state.completedDays; i++) tabs.push({ key: 'day' + i, label: 'Day ' + i });
+      if (state.completedDays >= 3) tabs.push({ key: 'final', label: 'Final' });
+      if (!tabs.some(function (tab) { return tab.key === state.reportView; })) state.reportView = tabs[tabs.length - 1].key;
+
+      document.getElementById('reportTabs').innerHTML = tabs.map(function (tab) {
+        return '<button class="report-tab ' + (state.reportView === tab.key ? 'active' : '') + '" onclick="setReportView(\'' + tab.key + '\')">' + tab.label + '</button>';
+      }).join('');
+
+      const snapshot = getCurrentReportSnapshot();
+      const data = snapshot.data;
+      const isFinal = state.reportView === 'final';
+      const stage = snapshot.stage || 0;
+
+      document.getElementById('scanDayLabel').textContent = (snapshot.label || 'Initial').toUpperCase() + ' SCAN';
+      const silhouette = document.getElementById('flowerSilhouette');
+      silhouette.classList.toggle('final', isFinal);
+      const glowScore = (data.expression || 0) + (data.resonance || 0) + (data.calmness || 0);
+      silhouette.style.setProperty('--blur', Math.max(6, 17 - glowScore / 5) + 'px');
+      silhouette.style.setProperty('--scale', (0.9 + ((data.finalGrowth || 0) + (data.continuity || 0)) / 90).toFixed(2));
+      const scanImage = document.getElementById('flowerScanImage');
+      const scanImageSrc = getFlowerScanImageSrc(state.reportView);
+      if (scanImage && scanImageSrc) {
+        scanImage.src = scanImageSrc;
+        scanImage.alt = snapshot.label + ' 共鸣兰 B 超图';
+        scanImage.style.display = 'block';
+        scanImage.style.opacity = isFinal ? '.98' : '.94';
+        silhouette.classList.add('has-scan-image');
+      } else {
+        if (scanImage) {
+          scanImage.removeAttribute('src');
+          scanImage.style.display = 'none';
+        }
+        silhouette.classList.remove('has-scan-image');
+      }
+
+      document.getElementById('reportHeading').textContent = snapshot.label + '｜' + (stage ? 'Stage ' + stage : '尚未生成 B 超');
+      document.getElementById('reportSummary').textContent = snapshot.summary;
+      renderMetricsGrid(snapshot);
+      document.getElementById('interpretationText').textContent = buildInterpretation(snapshot);
+      document.getElementById('finalPromptBox').textContent = state.completedDays >= 3 ? buildFinalPromptData() : 'Final data is not ready yet. Complete Day 1 / Day 2 / Day 3 first.';
+    }
+
+    function getCurrentReportSnapshot() {
+      if (!state.daySnapshots.length || state.reportView === 'initial') {
+        return {
+          label: 'Initial',
+          stage: 0,
+          data: { ...state.flowerData },
+          delta: emptyFlowerData(),
+          selectedAnswers: [],
+          summary: hasGroup() ? '已进入共鸣者流程，但花朵 B 超尚未生成。完成 Day 1 问卷后才会出现第一阶段图像。' : '完成分组问卷后，Flower 页面会开始记录三天数据。'
+        };
+      }
+      if (state.reportView === 'final') {
+        const last = state.daySnapshots[state.daySnapshots.length - 1];
+        return {
+          label: 'Final',
+          stage: 3,
+          data: { ...state.flowerData },
+          delta: last ? { ...last.delta } : emptyFlowerData(),
+          selectedAnswers: last ? last.selectedAnswers : [],
+          summary: CONNECTOR_STORY.finalSummary
+        };
+      }
+      const dayNumber = Number(state.reportView.replace('day', ''));
+      return state.daySnapshots[dayNumber - 1] || state.daySnapshots[state.daySnapshots.length - 1];
+    }
+
+    function getFlowerScanImageSrc(reportView) {
+      if (reportView === 'final') return FLOWER_SCAN_IMAGES.final;
+      if (reportView === 'initial') return '';
+      return FLOWER_SCAN_IMAGES[reportView] || '';
+    }
+
+    function setReportView(key) {
+      state.reportView = key;
+      saveState();
+      renderFlowerReport();
+    }
+
+    function renderMetricsGrid(snapshot) {
+      const focusKeys = snapshot.stage ? CONNECTOR_DAILY_QUESTIONS[snapshot.stage].focus : ['expression', 'resonance', 'centralVein', 'firstConnectionNodes'];
+      const extraKeys = Object.keys(snapshot.delta || {}).filter(function (key) { return (snapshot.delta[key] || 0) > 0 && !focusKeys.includes(key); });
+      const keys = focusKeys.concat(extraKeys);
+      document.getElementById('metricsGrid').innerHTML = keys.map(function (key) {
+        const meta = FLOWER_METRIC_DEFINITIONS[key] || { label: key, description: '' };
+        const total = Math.round(snapshot.data[key] || 0);
+        const delta = Math.round((snapshot.delta || {})[key] || 0);
+        return '<div class="metric">' +
+          '<div class="metric-label">' + escapeHtml(meta.label) + ' / ' + key + '</div>' +
+          '<div class="metric-value">' + total + '</div>' +
+          '<div class="metric-note">今日增长：+' + delta + '<br>' + escapeHtml(meta.description) + '</div>' +
+          '</div>';
+      }).join('');
+    }
+
+    function buildInterpretation(snapshot) {
+      if (!snapshot.stage) return FLOWER_STAGE_DESCRIPTIONS.initial;
+      const selectedText = (snapshot.selectedAnswers || []).map(function (item, index) {
+        return 'Q' + (index + 1) + '：' + item.label + '（' + formatReward(item.reward) + '）';
+      }).join(' / ');
+      return snapshot.summary + (selectedText ? ' 选择记录：' + selectedText : '');
+    }
+
+    function buildFinalPromptData() {
+      const data = state.flowerData;
+      const metricLines = Object.keys(FLOWER_METRIC_DEFINITIONS).map(function (key) {
+        const meta = FLOWER_METRIC_DEFINITIONS[key];
+        return '- ' + meta.label + ' / ' + key + ': ' + Math.round(data[key] || 0) + ' | affects: ' + meta.affects.join('、');
+      }).join('\n');
+      const dayLines = state.daySnapshots.map(function (snapshot) {
+        return snapshot.label + ': ' + formatPositiveDelta(snapshot.delta);
+      }).join('\n');
+      return 'SOCIAL SEED FINAL FLOWER DATA\n\n' +
+        'Plant: 共鸣兰 / Connector Orchid\n' +
+        'Group: 🌊 共鸣者 Connector Group\n\n' +
+        'Concept:\n' + CONNECTOR_STORY.finalSummary + '\n\n' +
+        'Daily reward trace:\n' + dayLines + '\n\n' +
+        'Final digital parameters:\n' + metricLines + '\n\n' +
+        'Visual generation direction:\n' +
+        'Create a bio-digital botanical ultrasound flower. It should not be fully blooming. It should have a bright central vein, early resonance nodes, asymmetric curled side branches, interwoven connections, three main growth directions for A/B/C, glowing memory nodes at branch tips, and a cluster of unfinished transparent seed pods at the top. Keep the image blurred and B-scan-like, with dark background and soft cyan/green/pearl light. Generate one final beauty image and three modeling reference views: front, side, top.';
+    }
+
+    function formatReward(reward) {
+      return Object.entries(reward).map(function (entry) {
+        const meta = FLOWER_METRIC_DEFINITIONS[entry[0]];
+        return (meta ? meta.label : entry[0]) + ' +' + entry[1];
+      }).join('，');
+    }
+
+    function formatPositiveDelta(delta) {
+      return Object.entries(delta).filter(function (entry) { return entry[1] > 0; }).map(function (entry) {
+        const meta = FLOWER_METRIC_DEFINITIONS[entry[0]];
+        return (meta ? meta.label : entry[0]) + ' +' + entry[1];
+      }).join('，') || '无明显增长';
+    }
+
+    function updateChatHeader() {
+      const group = hasGroup() ? GROUPS[state.assignedGroupIndex] : null;
+      document.getElementById('chatTitle').textContent = group
+        ? (state.assignedGroupIndex === CONNECTOR_INDEX ? CONNECTOR_STORY.groupTitle : group.name + ' ' + group.short + ' Group')
+        : 'Seed Chat';
+      document.getElementById('chatSubtitle').textContent = group
+        ? '当前：Day ' + state.currentDay + ' / 3。' + (state.assignedGroupIndex === CONNECTOR_INDEX ? CONNECTOR_STORY.subtitle : '本次完整三天演示聚焦共鸣者 Connector / 共鸣兰。')
+        : 'Complete the questionnaire first.';
+    }
+
+    function renderChatControls() {
+      const finished = state.completedDays >= 3;
+      const chatComplete = isCurrentChatComplete();
+      const playBtn = document.getElementById('playDayBtn');
+      const nextBtn = document.getElementById('nextMessageBtn');
+      const enterBtn = document.getElementById('enterQuizBtn');
+      if (!playBtn || !nextBtn || !enterBtn) return;
+      playBtn.disabled = finished || state.dailyQuizUnlocked || chatComplete;
+      nextBtn.disabled = finished || state.dailyQuizUnlocked || chatComplete;
+      enterBtn.disabled = finished || state.dailyQuizUnlocked || !chatComplete;
+      playBtn.textContent = finished ? '对话完成' : '播放 Day ' + state.currentDay;
+      nextBtn.textContent = '下一条';
+      enterBtn.textContent = state.dailyQuizUnlocked ? '问卷已开启' : '进入今日问卷';
+    }
+
+    function updateAllUI() {
+      renderGroupResult();
+      renderDailyDialogue();
+      renderMappingTable();
+      renderFlowerReport();
+      updateChatHeader();
+      renderChatControls();
+      document.getElementById('usernameInput').value = state.username || '';
+    }
+
+    function resetDialogueOnly() {
+      if (!hasGroup()) return;
+      if (!confirm('Reset Day dialogue data, but keep user and group?')) return;
+      if (playbackTimer) clearInterval(playbackTimer);
+      state.flowerData = emptyFlowerData();
+      state.daySnapshots = [];
+      state.currentDay = 1;
+      state.completedDays = 0;
+      state.currentFlowerStage = 0;
+      state.reportView = 'initial';
+      state.messagesInitialized = false;
+      state.dailyQuizUnlocked = false;
+      state.chatProgress = { 1: 0, 2: 0, 3: 0 };
+      document.getElementById('messages').innerHTML = '';
+      saveState();
+      updateAllUI();
+      initializeMessagesIfNeeded();
+    }
+
+    function resetPrototype() {
+      if (!confirm('Reset the whole prototype?')) return;
+      if (playbackTimer) clearInterval(playbackTimer);
+      state = structuredClone(defaultState);
+      localStorage.removeItem(STORAGE_KEY);
+      document.getElementById('usernameInput').value = '';
+      document.getElementById('messages').innerHTML = '';
+      renderGroupQuestionnaire();
+      showPageRaw('home');
+    }
+
+    renderGroupQuestionnaire();
+    updateAllUI();
+    saveState();
+  </script>
+</body>
+
+</html>
